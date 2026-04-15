@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI LinkedIn Assistant</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Segoe UI", sans-serif;
+        }
+
+        body {
+            height: 100vh;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chat-wrapper {
+            width: 800px;
+            height: 800px;
+            backdrop-filter: blur(20px);
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        }
+
+        .header {
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+            background: rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .chat-box {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        .message {
+            max-width: 75%;
+            padding: 10px 14px;
+            margin: 8px 0;
+            border-radius: 14px;
+            line-height: 1.4;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .user {
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    color: white;
+    margin-left: auto;
+    box-shadow: 0 4px 12px rgba(59,130,246,0.3);
+}
+
+        .bot {
+    background: rgba(255,255,255,0.05);
+    color: #e2e8f0;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+        @keyframes fadeIn {
+            from {opacity: 0; transform: translateY(10px);}
+            to {opacity: 1; transform: translateY(0);}
+        }
+
+        .input-area {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        input {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            outline: none;
+            background: #1e293b;
+            color: white;
+        }
+
+        button {
+            margin-left: 10px;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 10px;
+            background: #22c55e;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #16a34a;
+        }
+
+        .typing {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 5px;
+        }
+        .jobs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.job-card {
+    background: #1e293b;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: 0.2s;
+}
+
+.job-card:hover {
+    transform: scale(1.02);
+    border-color: #22c55e;
+}
+
+.job-card h4 {
+    margin-bottom: 5px;
+    color: #22c55e;
+}
+
+.job-card p {
+    font-size: 13px;
+    color: #cbd5f5;
+}
+
+.job-card .date {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.job-card a {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 13px;
+    color: #60a5fa;
+    text-decoration: none;
+}
+
+.job-card a:hover {
+    text-decoration: underline;
+}
+    </style>
+</head>
+
+<body>
+
+<div class="chat-wrapper">
+
+    <div class="header">🤖 LinkedIn AI Assistant</div>
+
+    <div id="chat-box" class="chat-box"></div>
+
+    <div class="input-area">
+        <input type="text" id="input" placeholder="Ask anything...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+</div>
+
+<script>
+    const chatBox = document.getElementById("chat-box");
+
+    function addMessage(text, sender) {
+    const msg = document.createElement("div");
+    msg.classList.add("message", sender);
+
+    // 🔥 Detect table format
+    if (text.includes("| Title |") && sender === "bot") {
+        msg.innerHTML = renderJobCards(text);
+    } else {
+        msg.innerText = text;
+    }
+
+    chatBox.appendChild(msg);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+function renderJobCards(text) {
+    const lines = text.split("\n");
+
+    let cardsHTML = `<div class="jobs-container">`;
+
+    for (let line of lines) {
+        if (line.startsWith("|") && line.includes("View")) {
+            const cols = line.split("|").map(c => c.trim());
+
+            if (cols.length < 6) continue;
+
+            const title = cols[2];
+            const company = cols[3];
+            const location = cols[4];
+            const date = cols[5];
+
+            const linkMatch = line.match(/\((https.*?)\)/);
+            const link = linkMatch ? linkMatch[1] : "#";
+
+            cardsHTML += `
+                <div class="job-card">
+                    <h4>${title}</h4>
+                    <p><strong>${company}</strong></p>
+                    <p>${location}</p>
+                    <p class="date">${date}</p>
+                    <a href="${link}" target="_blank">Apply Now →</a>
+                </div>
+            `;
+        }
+    }
+
+    cardsHTML += `</div>`;
+    return cardsHTML;
+}
+
+    function showTyping() {
+        const typing = document.createElement("div");
+        typing.classList.add("typing");
+        typing.id = "typing";
+        typing.innerText = "AI is typing...";
+        chatBox.appendChild(typing);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function removeTyping() {
+        const typing = document.getElementById("typing");
+        if (typing) typing.remove();
+    }
+
+    async function sendMessage() {
+        const input = document.getElementById("input");
+        const message = input.value.trim();
+
+        if (!message) return;
+
+        addMessage(message, "user");
+        input.value = "";
+
+        showTyping();
+
+        const res = await fetch("/chat", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ message })
+        });
+
+        const data = await res.json();
+
+        removeTyping();
+        addMessage(data.response, "bot");
+    }
+
+    // Enter key support
+    document.getElementById("input").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") {
+            sendMessage();
+        }
+    });
+</script>
+
+</body>
+</html>
