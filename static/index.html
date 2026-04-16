@@ -188,41 +188,50 @@
     chatBox.appendChild(msg);
     chatBox.scrollTop = chatBox.scrollHeight;
 }
-function renderJobCards(text) {
-    const lines = text.split("\n");
+function addJobCards(jobs) {
+    const container = document.createElement("div");
+    container.className = "jobs-container message bot";
 
-    let cardsHTML = `<div class="jobs-container">`;
+    jobs.forEach(job => {
+        const card = document.createElement("div");
+        card.className = "job-card";
 
-    for (let line of lines) {
-        if (line.startsWith("|") && line.includes("View")) {
-            const cols = line.split("|").map(c => c.trim());
+        // Use textContent — never innerHTML for external data
+        const title = document.createElement("h4");
+        title.textContent = job.title;
 
-            if (cols.length < 6) continue;
+        const company = document.createElement("p");
+        company.textContent = job.company;
 
-            const title = cols[2];
-            const company = cols[3];
-            const location = cols[4];
-            const date = cols[5];
+        const loc = document.createElement("p");
+        loc.textContent = job.location;
 
-            const linkMatch = line.match(/\((https.*?)\)/);
-            const link = linkMatch ? linkMatch[1] : "#";
+        const date = document.createElement("p");
+        date.className = "date";
+        date.textContent = job.date;
 
-            cardsHTML += `
-                <div class="job-card">
-                    <h4>${title}</h4>
-                    <p><strong>${company}</strong></p>
-                    <p>${location}</p>
-                    <p class="date">${date}</p>
-                    <a href="${link}" target="_blank">Apply Now →</a>
-                </div>
-            `;
-        }
-    }
+        const link = document.createElement("a");
+        link.href = job.link;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";   // security
+        link.textContent = "Apply now →";
 
-    cardsHTML += `</div>`;
-    return cardsHTML;
+        card.append(title, company, loc, date, link);
+        container.appendChild(card);
+    });
+
+    chatBox.appendChild(container);
+    chatBox.scrollTop = chatBox.scrollHeight;
 }
 
+function addTextMessage(text) {
+    if (!text) return;
+    const msg = document.createElement("div");
+    msg.className = "message bot";
+    msg.textContent = text;   // safe, no innerHTML
+    chatBox.appendChild(msg);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
     function showTyping() {
         const typing = document.createElement("div");
         typing.classList.add("typing");
@@ -238,30 +247,34 @@ function renderJobCards(text) {
     }
 
     async function sendMessage() {
-        const input = document.getElementById("input");
-        const message = input.value.trim();
+    const input = document.getElementById("input");
+    const message = input.value.trim();
+    if (!message) return;
 
-        if (!message) return;
+    addMessage(message, "user");
+    input.value = "";
+    showTyping();
 
-        addMessage(message, "user");
-        input.value = "";
-
-        showTyping();
-
+    try {
         const res = await fetch("/chat", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
+            headers: {"Content-Type": "application/json"},
             body: JSON.stringify({ message })
         });
-
         const data = await res.json();
-
         removeTyping();
-        addMessage(data.response, "bot");
-    }
 
+        if (data.response_type === "jobs") {
+            addTextMessage(data.text);          // agent summary as text
+            addJobCards(data.jobs);             // structured cards
+        } else {
+            addTextMessage(data.text);
+        }
+    } catch (err) {
+        removeTyping();
+        addTextMessage("Something went wrong. Please try again.");
+    }
+}
     // Enter key support
     document.getElementById("input").addEventListener("keypress", function(e) {
         if (e.key === "Enter") {

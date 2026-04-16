@@ -180,19 +180,6 @@ CONFIG = {"configurable": {"thread_id": "t1"}}
 
 print("LinkedIn Assistant ready! Type 'exit' or 'bye' to quit.\n")
 
-# while True:
-#     user_input = input("you: ")
-#     if user_input.lower() in ["exit", "bye"]:
-#         print("Goodbye! 👋")
-#         break
-#     result = main_agent.invoke(
-#         {"messages": [{"role": "user", "content": user_input}]},
-#         config=CONFIG
-#     )
-#     response = result['messages'][-1].content
-#     print("assistant:", response)
-#     print()
-
 
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -214,9 +201,91 @@ class ChatRequest(BaseModel):
     message: str
 
 
+import json
+
+# @app.post("/chat")
+# async def chat(req: ChatRequest):
+#     result = main_agent.invoke(
+#         {"messages": [{"role": "user", "content": req.message}]},
+#         config=CONFIG
+#     )
+#     messages = result["messages"][-1]
+
+#     # Walk backwards: find the last ToolMessage
+#     last_tool_data = None
+#     # print(messages)
+#     for msg in messages:
+#         # LangChain ToolMessage has .type == "tool"
+#         print(msg)
+#         if getattr(msg, "type", "") == "tool":
+#             try:
+#                 last_tool_data = json.loads(msg.content)
+#                 print(last_tool_data)
+#             except:
+#                 last_tool_data = None
+#             break
+
+#     ai_text = messages.content   # final AIMessage text
+
+#     # If last tool returned jobs, send structured payload
+#     if last_tool_data and last_tool_data.get("type") == "jobs":
+#         return {
+#             "response_type": "jobs",
+#             "jobs": last_tool_data["jobs"],
+#             "text": ai_text      # agent summary still included
+#         }
+
+#     return {"response_type": "text", "text": ai_text}
+
+
+
+
+
 @app.post("/chat")
 async def chat(req: ChatRequest):
-    result = main_agent.invoke({
-        "messages": [{"role": "user", "content": req.message}]
-    },config=CONFIG)
-    return {"response": result['messages'][-1].content}
+    result = main_agent.invoke(
+        {"messages": [{"role": "user", "content": req.message}]},
+        config=CONFIG
+    )
+    messages = result["messages"]
+
+    ai_text = messages[-1].content  # final AIMessage text
+
+    # Find the index of the LAST HumanMessage
+    last_human_idx = None
+    for i in reversed(range(len(messages))):
+        if getattr(messages[i], "type", "") == "human":
+            last_human_idx = i
+            break
+
+    # Only look at messages AFTER the last HumanMessage
+    recent_messages = messages[last_human_idx + 1:] if last_human_idx is not None else []
+
+    # Step 1: Was linkedin_job_search called in this exchange?
+    job_search_tool_id = None
+    for msg in recent_messages:
+        if getattr(msg, "type", "") == "ai":
+            for tool_call in getattr(msg, "tool_calls", []):
+                if tool_call.get("name") == "linkedin_job_search":
+                    job_search_tool_id = tool_call.get("id")
+
+    # Step 2: If yes, find its ToolMessage result
+    job_tool_result = None
+    if job_search_tool_id:
+        for msg in recent_messages:
+            if getattr(msg, "type", "") == "tool" and getattr(msg, "tool_call_id", "") == job_search_tool_id:
+                try:
+                    job_tool_result = json.loads(msg.content)
+                except:
+                    job_tool_result = None
+                break
+
+    # Step 3: Only return cards if tool ran AND returned type "jobs"
+    if job_tool_result and job_tool_result.get("type") == "jobs":
+        return {
+            "response_type": "jobs",
+            "jobs": job_tool_result["jobs"],
+            # "text": ai_text
+        }
+
+    return {"response_type": "text", "text": ai_text}
