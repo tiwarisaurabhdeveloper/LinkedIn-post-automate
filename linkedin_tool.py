@@ -74,7 +74,7 @@ def linkedin_text_post(generated_post: str):
 # ─────────────────────────────────────────
 
 @tool
-def linkedin_job_search(job_title: str, location: str, date_posted: str = "week", num_jobs: int = 5) -> str:
+def linkedin_job_search(job_title: str, location: str, date_posted: str = "week", num_jobs: int = 10) -> str:
     """
     Search for jobs on LinkedIn based on job title and location.
     date_posted options: 'day', 'week', 'month'
@@ -167,4 +167,9 @@ def linkedin_job_search(job_title: str, location: str, date_posted: str = "week"
             f"🔗 Link     : {job['link']}\n"
             f"{'─'*50}\n"
         )
-    return output
+    return {
+        "type": "jobs",           # <-- key flag for the frontend
+        "jobs": jobs_list         # list of {title, company, location, date, link}
+    }
+
+    # return output
